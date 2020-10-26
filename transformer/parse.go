@@ -76,7 +76,8 @@ func (p *Parse) Transform(c *skogul.Container) error {
 			return err
 		}
 		if len(parsed.Metrics) == 0 {
-			return skogul.Error{Reason: "Parsed 0 metrics", Source: "transformer-parser"}
+			continue
+			//return skogul.Error{Reason: "Parsed 0 metrics", Source: "transformer-parser"}
 		}
 
 		if !p.Keep {

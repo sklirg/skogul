@@ -30,6 +30,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/telenornms/skogul"
 )
 
@@ -37,7 +39,9 @@ var sdLog = skogul.Logger("parser", "structured_data")
 
 // StructuredData supports parsing RFC5424 structured data through the Parse() function
 // Note: This does not parse a full syslog message.
-type StructuredData struct{}
+type StructuredData struct{
+	ShowParseFailures bool `doc:"Show errors about parse failures"`
+}
 
 // Parse converts RFC5424 Structured Data data into a skogul Container
 func (sd *StructuredData) Parse(bytes []byte) (*skogul.Container, error) {
@@ -78,8 +82,15 @@ func (sd *StructuredData) parseStructuredData(data []byte) ([]*skogul.Metric, er
 			tagValue := strings.SplitN(tag, "=", 2)
 
 			if len(tagValue) == 1 {
-				if strings.TrimSpace(tagValue[0]) == "" {
-					return nil, skogul.Error{Reason: "Got invalid data in the middle of a structured data line", Source: "structured_data-parser"}
+				if strings.TrimSpace(tagValue[0]) == "" || strings.TrimSpace(tagValue[0]) == "-" {
+					if sd.ShowParseFailures {
+						sdLog.WithFields(log.Fields{
+							"line": string(line),
+							"tagValue": tagValue,
+						}).Debug("Invalid data in line")
+					}
+					break
+					//return nil, skogul.Error{Reason: "Got invalid data in the middle of a structured data line", Source: "structured_data-parser"}
 				}
 				if metric != nil {
 					if len(metric.Data) > 0 {
@@ -118,10 +129,12 @@ func (sd *StructuredData) parseStructuredData(data []byte) ([]*skogul.Metric, er
 			metrics = append(metrics, metric)
 		}
 	}
+	/*
 	if len(metrics) == 0 {
 		sdLog.WithField("lines", len(lines)).Warnf("RFC5424/Structured Data parser failed to parse any of the %d lines", len(lines))
 		return nil, skogul.Error{Reason: "Failed to parse RFC5424 lines", Source: "structured_data-parser"}
 	}
+	*/
 	return metrics, nil
 }
 
